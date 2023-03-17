@@ -13,17 +13,7 @@ $routes = include __DIR__.'/../src/app.php';
 $context = new Routing\RequestContext();
 $context->fromRequest($request);
 
-
-use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
-use Symfony\Component\Routing\Matcher\Dumper\CompiledUrlMatcherDumper;
-$compiledRoutes = (new CompiledUrlMatcherDumper($routes))->getCompiledRoutes();
-// $compiledRoutes is a plain PHP array you can cache it, typically by exporting it to a PHP file
-file_put_contents('preRoutes.php', '<?php return ' . var_export($compiledRoutes, true) . ';');
-$compiledRoutes2 = include 'preRoutes.php'; //EOCaching (not active)
-$matcher = new CompiledUrlMatcher($compiledRoutes2, $context);
-
-
-//$matcher = new Routing\Matcher\UrlMatcher($routes, $context);
+$matcher = new Routing\Matcher\UrlMatcher($routes, $context);
 
 try {
     extract($matcher->match($request->getPathInfo()), EXTR_SKIP);
