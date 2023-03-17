@@ -1,46 +1,41 @@
 <?php
-
-// framework/front.php
-$navRoot = '/..';
-$navPages = $navRoot.'/src/pages';
-
-require_once __DIR__.$navRoot.'/vendor/autoload.php';
+// example.com/web/front.php
+require_once __DIR__.'/../vendor/autoload.php';
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\RouteCollection;
-use Symfony\Component\Routing\Route;
-use Symfony\Component\Routing\Matcher\UrlMatcher;
-use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Routing;
+use Symfony\Component\Routing\CompiledRoute;
 
 $request = Request::createFromGlobals();
+$routes = include __DIR__.'/../src/app.php';
 
-$routes = new RouteCollection();
-
-$routes->add('hello', new Route('/hello/{name}', ['name' => 'World']));
-$routes->add('bye', new Route('/bye'));
-
-$context = new RequestContext();
+$context = new Routing\RequestContext();
 $context->fromRequest($request);
-$matcher = new UrlMatcher($routes, $context);
-
-$attributes = $matcher->match($request->getPathInfo());
 
 
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
+use Symfony\Component\Routing\Matcher\Dumper\CompiledUrlMatcherDumper;
+$compiledRoutes = (new CompiledUrlMatcherDumper($routes))->getCompiledRoutes();
+// $compiledRoutes is a plain PHP array you can cache it, typically by exporting it to a PHP file
+file_put_contents('preRoutes.php', '<?php return ' . var_export($compiledRoutes, true) . ';');
+$compiledRoutes2 = include 'preRoutes.php'; //EOCaching (not active)
+$matcher = new CompiledUrlMatcher($compiledRoutes2, $context);
 
-$map = [
-    '/hello' => 'hello',
-    '/bye'   => 'bye',
-];
 
-$path = $request->getPathInfo();
-if (isset($map[$path])) {
+//$matcher = new Routing\Matcher\UrlMatcher($routes, $context);
+
+try {
+    extract($matcher->match($request->getPathInfo()), EXTR_SKIP);
     ob_start();
-    extract($request->query->all(), EXTR_SKIP);
-    include sprintf(__DIR__.$navPages.'/%s.php', $map[$path]);
+    include sprintf(__DIR__.'/../src/pages/%s.php', $_route);
+
     $response = new Response(ob_get_clean());
-} else {
+} catch (Routing\Exception\ResourceNotFoundException $exception) {
     $response = new Response('Not Found', 404);
+} catch (Exception $exception) {
+    $response = new Response('An error occurred', 500);
 }
+
 
 $response->send();
